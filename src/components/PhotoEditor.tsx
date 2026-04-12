@@ -8,6 +8,11 @@ function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
 
+export type SyncAction =
+  | { type: 'SET_GRID'; value: boolean }
+  | { type: 'SET_ROTATION_LOCK'; value: boolean }
+  | { type: 'HIDE_CONTROLS' };
+
 export interface PhotoEditorRef {
   getExportData: () => {
     image: HTMLImageElement;
@@ -20,13 +25,15 @@ export interface PhotoEditorRef {
   } | null;
   clearPhoto: () => void;
   setPhoto: (file: File) => void;
+  applySyncAction: (action: SyncAction) => void;
 }
 
 export interface PhotoEditorProps {
   onFilesSelected?: (files: File[]) => void;
+  onSyncAction?: (action: SyncAction) => void;
 }
 
-export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFilesSelected }, ref) => {
+export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFilesSelected, onSyncAction }, ref) => {
   const [file, setFile] = useState<File | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +60,7 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
   const updateTransformStyle = () => {
     if (imageRef.current) {
       const { x, y, scale, rotation } = transformConfig.current;
-      imageRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotate(${rotation}deg)`;
+      imageRef.current.style.transform = `translate(${x}px, ${y}px) scale(${scale}) rotate(${rotation}deg)`;
     }
   };
 
@@ -86,6 +93,13 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
       transformConfig.current = { x: 0, y: 0, scale: 1, rotation: 0 };
       setZoomLevel(1);
       setRotationDeg(0);
+    },
+    applySyncAction: (action: SyncAction) => {
+      switch (action.type) {
+        case 'SET_GRID': setShowGrid(action.value); break;
+        case 'SET_ROTATION_LOCK': setRotationEnabled(action.value); break;
+        case 'HIDE_CONTROLS': setShowControls(false); break;
+      }
     }
   }));
 
@@ -119,6 +133,16 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
     updateTransformStyle();
   };
 
+  const handleGridToggle = (show: boolean, isSync = false) => {
+    setShowGrid(show);
+    if (!isSync && onSyncAction) onSyncAction({ type: 'SET_GRID', value: show });
+  };
+
+  const handleRotationLockToggle = (enabled: boolean, isSync = false) => {
+    setRotationEnabled(enabled);
+    if (!isSync && onSyncAction) onSyncAction({ type: 'SET_ROTATION_LOCK', value: enabled });
+  };
+
   const handleRotate = () => {
     let newRot = transformConfig.current.rotation + 90;
     if (newRot > 180) newRot -= 360;
@@ -144,7 +168,13 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
 
   useDrag(({ tap, offset: [ox, oy], active }) => {
     if (tap) {
-      setShowControls(prev => !prev);
+      setShowControls(prev => {
+        const next = !prev;
+        if (next && onSyncAction) {
+          onSyncAction({ type: 'HIDE_CONTROLS' });
+        }
+        return next;
+      });
       return;
     }
 
@@ -217,7 +247,6 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
       <div
         ref={containerRef}
         className="relative flex-1 bg-black overflow-hidden cursor-grab active:cursor-grabbing touch-none ring-1 ring-white/5"
-        style={{ transformStyle: 'preserve-3d' }}
       >
         <img
           ref={imageRef}
@@ -232,7 +261,6 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
           <div 
             className="absolute inset-0 pointer-events-none z-50"
             style={{
-              transform: 'translateZ(10px)',
               backgroundImage: `
                 repeating-linear-gradient(to right, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 10%),
                 repeating-linear-gradient(to bottom, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 10%)
@@ -297,61 +325,58 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
         )}
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-between mt-1 pt-3 border-t border-white/5">
-          <div className="flex gap-1.5">
-            <button
-              onClick={handleRotate}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition-colors text-sm font-medium"
-            >
-              <RotateCw className="w-4 h-4" />
-              <span>Rotate</span>
-            </button>
-            <button
-              onClick={() => setRotationEnabled(!rotationEnabled)}
-              className={cn(
-                "flex items-center justify-center p-1.5 rounded-lg transition-colors",
-                rotationEnabled ? "bg-white/20 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
-              )}
-              title={rotationEnabled ? "Lock Rotation" : "Unlock Free Rotation"}
-            >
-              {rotationEnabled ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={() => setShowGrid(!showGrid)}
-              className={cn(
-                "flex items-center justify-center p-1.5 rounded-lg transition-colors",
-                showGrid ? "bg-white/20 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
-              )}
-              title="Toggle Grid"
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={resetTransform}
-              className="px-3 py-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition-colors text-sm font-medium"
-            >
-              Reset
-            </button>
-            <button
-              onClick={() => {
-                setFile(null);
-                setObjectUrl(null);
-              }}
-              className="px-3 py-1.5 rounded-lg hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
-              title="Clear photo"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowControls(false)}
-              className="px-3 py-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition-colors md:hidden"
-              title="Hide controls"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1 pt-3 border-t border-white/5">
+          <button
+            onClick={handleRotate}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition-colors text-sm font-medium shrink-0"
+          >
+            <RotateCw className="w-4 h-4" />
+            <span className="hidden sm:inline">Rotate</span>
+          </button>
+          <button
+            onClick={() => handleRotationLockToggle(!rotationEnabled)}
+            className={cn(
+              "flex items-center justify-center p-1.5 rounded-lg transition-colors shrink-0",
+              rotationEnabled ? "bg-white/20 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
+            )}
+            title={rotationEnabled ? "Lock Rotation" : "Unlock Free Rotation"}
+          >
+            {rotationEnabled ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => handleGridToggle(!showGrid)}
+            className={cn(
+              "flex items-center justify-center p-1.5 rounded-lg transition-colors shrink-0",
+              showGrid ? "bg-white/20 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
+            )}
+            title="Toggle Grid"
+          >
+            <Grid3X3 className="w-4 h-4" />
+          </button>
+          <div className="w-[1px] h-4 bg-white/10 mx-0.5 shrink-0" />
+          <button
+            onClick={() => resetTransform()}
+            className="px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition-colors text-sm font-medium shrink-0"
+          >
+            Reset
+          </button>
+          <button
+            onClick={() => {
+              setFile(null);
+              setObjectUrl(null);
+            }}
+            className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors shrink-0"
+            title="Clear photo"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowControls(false)}
+            className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition-colors md:hidden shrink-0"
+            title="Hide controls"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { PhotoEditor, type PhotoEditorRef } from './components/PhotoEditor';
+import { PhotoEditor, type PhotoEditorRef, type SyncAction } from './components/PhotoEditor';
 import { exportComparison } from './utils/canvasExport';
 import { Download, Columns, Rows, Trash2 } from 'lucide-react';
 
@@ -54,6 +54,13 @@ function App() {
     }
   };
 
+  const handleSyncAction = (action: SyncAction, source: 'top' | 'bottom') => {
+    const targetRef = source === 'top' ? bottomRef : topRef;
+    if (targetRef.current && targetRef.current.applySyncAction) {
+      targetRef.current.applySyncAction(action);
+    }
+  };
+
   return (
     <div className="h-[100dvh] min-h-[100dvh] bg-black text-white flex flex-col font-sans overflow-hidden">
       <header className="py-4 px-6 border-b border-white/10 flex items-center justify-between bg-black/90 backdrop-blur z-50 shrink-0">
@@ -96,7 +103,7 @@ function App() {
           <div className="w-full h-full flex items-center justify-center min-w-0 min-h-0">
              <div className={`flex flex-col items-center ${layout === 'horizontal' ? 'w-full' : 'h-full'}`}>
                 <div className={`relative shrink min-h-0 min-w-0 ${layout === 'horizontal' ? 'w-full' : 'h-full'}`} style={{ aspectRatio: screenRatio }}>
-                   <PhotoEditor ref={topRef} onFilesSelected={handleMultipleFiles} />
+                   <PhotoEditor ref={topRef} onFilesSelected={handleMultipleFiles} onSyncAction={(action) => handleSyncAction(action, 'top')} />
                 </div>
                 <input
                    value={topLabel}
@@ -111,7 +118,7 @@ function App() {
           <div className="w-full h-full flex items-center justify-center min-w-0 min-h-0">
              <div className={`flex flex-col items-center ${layout === 'horizontal' ? 'w-full' : 'h-full'}`}>
                 <div className={`relative shrink min-h-0 min-w-0 ${layout === 'horizontal' ? 'w-full' : 'h-full'}`} style={{ aspectRatio: screenRatio }}>
-                   <PhotoEditor ref={bottomRef} onFilesSelected={handleMultipleFiles} />
+                   <PhotoEditor ref={bottomRef} onFilesSelected={handleMultipleFiles} onSyncAction={(action) => handleSyncAction(action, 'bottom')} />
                 </div>
                 <input
                    value={bottomLabel}

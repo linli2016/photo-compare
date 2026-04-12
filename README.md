@@ -72,6 +72,8 @@ export default defineConfig([
 ])
 ```
 
+Run on local
+```npm run dev -- --host```
 
 Publish
 ```
