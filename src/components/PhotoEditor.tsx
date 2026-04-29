@@ -22,6 +22,7 @@ export interface PhotoEditorRef {
     rotation: number;
     containerWidth: number;
     containerHeight: number;
+    showGrid: boolean;
   } | null;
   clearPhoto: () => void;
   setPhoto: (file: File) => void;
@@ -44,7 +45,7 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
   const transformConfig = useRef({ x: 0, y: 0, scale: 1, rotation: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotationDeg, setRotationDeg] = useState(0);
-  const [showGrid, setShowGrid] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
   const [showControls, setShowControls] = useState(false);
   const [isGesturing, setIsGesturing] = useState(false);
   const [rotationEnabled, setRotationEnabled] = useState(false);
@@ -81,6 +82,7 @@ export const PhotoEditor = forwardRef<PhotoEditorRef, PhotoEditorProps>(({ onFil
         rotation: transformConfig.current.rotation,
         containerWidth: containerRef.current.clientWidth,
         containerHeight: containerRef.current.clientHeight,
+        showGrid: showGrid,
       };
     },
     clearPhoto: () => {

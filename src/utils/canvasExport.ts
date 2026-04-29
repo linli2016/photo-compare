@@ -93,6 +93,44 @@ export async function exportComparison(
     );
     
     ctx.restore();
+
+    // Draw the grid overlay if it's currently showing
+    if (data.showGrid) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(targetRect.x, targetRect.y, targetRect.w, targetRect.h);
+      ctx.clip();
+      
+      // Setup grid lines
+      ctx.lineWidth = 1;
+
+      // 10 vertical and horizontal lines
+      const stepX = targetRect.w / 10;
+      const stepY = targetRect.h / 10;
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.beginPath();
+      for(let i = 1; i < 10; i++) {
+        // Vertical lines
+        ctx.moveTo(targetRect.x + i * stepX, targetRect.y);
+        ctx.lineTo(targetRect.x + i * stepX, targetRect.y + targetRect.h);
+        // Horizontal lines
+        ctx.moveTo(targetRect.x, targetRect.y + i * stepY);
+        ctx.lineTo(targetRect.x + targetRect.w, targetRect.y + i * stepY);
+      }
+      ctx.stroke();
+
+      // Center crosshairs
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.moveTo(targetRect.x, targetRect.y + targetRect.h / 2);
+      ctx.lineTo(targetRect.x + targetRect.w, targetRect.y + targetRect.h / 2);
+      ctx.moveTo(targetRect.x + targetRect.w / 2, targetRect.y);
+      ctx.lineTo(targetRect.x + targetRect.w / 2, targetRect.y + targetRect.h);
+      ctx.stroke();
+
+      ctx.restore();
+    }
   };
 
   // Draw top (or left) image
